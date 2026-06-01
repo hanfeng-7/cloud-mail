@@ -99,6 +99,16 @@ const routers = {
             menu: true
         }
     }],
+    'inbox-key:query': [{
+        path: '/inbox-key',
+        name: 'inbox-key',
+        component: () => import('@/views/inbox-key/index.vue'),
+        meta: {
+            title: 'Key Inbox',
+            name: 'inbox-key',
+            menu: true
+        }
+    }],
     'all-email:query': [{
         path: '/all-mail',
         name: 'all-email',

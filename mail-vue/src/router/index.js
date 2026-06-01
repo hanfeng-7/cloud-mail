@@ -100,6 +100,10 @@ router.beforeEach((to, from, next) => {
 
     const token = localStorage.getItem('token')
 
+    if (!token && to.name === 'email' && to.query.key) {
+        return next()
+    }
+
     if (!token && to.name !== 'login') {
         return next({name: 'login'})
     }

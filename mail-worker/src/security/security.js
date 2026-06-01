@@ -15,6 +15,8 @@ const exclude = [
 	'/setting/websiteConfig',
 	'/webhooks',
 	'/init',
+	'/inboxKey/mailList',
+	'/inboxKey/latest',
 	'/public/genToken',
 	'/telegram',
 	'/test',
@@ -58,7 +60,11 @@ const requirePerms = [
 	'/regKey/list',
 	'/regKey/delete',
 	'/regKey/clearNotUse',
-	'/regKey/history'
+	'/regKey/history',
+	'/inboxKey/add',
+	'/inboxKey/list',
+	'/inboxKey/set',
+	'/inboxKey/delete'
 ];
 
 const premKey = {
@@ -87,6 +93,10 @@ const premKey = {
 	'reg-key:add': ['/regKey/add'],
 	'reg-key:query': ['/regKey/list','/regKey/history'],
 	'reg-key:delete': ['/regKey/delete','/regKey/clearNotUse'],
+	'inbox-key:add': ['/inboxKey/add'],
+	'inbox-key:query': ['/inboxKey/list'],
+	'inbox-key:set': ['/inboxKey/set'],
+	'inbox-key:delete': ['/inboxKey/delete'],
 };
 
 app.use('*', async (c, next) => {

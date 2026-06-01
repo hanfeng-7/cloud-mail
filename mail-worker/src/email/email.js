@@ -11,6 +11,7 @@ import roleService from '../service/role-service';
 import userService from '../service/user-service';
 import telegramService from '../service/telegram-service';
 import aiService from '../service/ai-service';
+import inboxKeyService from '../service/inbox-key-service';
 
 export async function email(message, env, ctx) {
 
@@ -58,8 +59,18 @@ export async function email(message, env, ctx) {
 		}
 
 		const account = await accountService.selectByEmailIncludeDel({ env: env }, message.to);
+		let inboxKeyRow = null;
 
-		if (!account && noRecipient === settingConst.noRecipient.CLOSE) {
+		if (!account) {
+			try {
+				inboxKeyRow = await inboxKeyService.selectByEmailForReceive({ env: env }, message.to);
+			} catch (e) {
+				message.setReject(e.message || 'Recipient not available');
+				return;
+			}
+		}
+
+		if (!account && !inboxKeyRow && noRecipient === settingConst.noRecipient.CLOSE) {
 			message.setReject('Recipient not found');
 			return;
 		}
@@ -144,7 +155,7 @@ export async function email(message, env, ctx) {
 			console.error(e);
 		}
 
-		emailRow = await emailService.completeReceive({ env }, account ? emailConst.status.RECEIVE : emailConst.status.NOONE, emailRow.emailId);
+		emailRow = await emailService.completeReceive({ env }, (account || inboxKeyRow) ? emailConst.status.RECEIVE : emailConst.status.NOONE, emailRow.emailId);
 
 
 		if (ruleType === settingConst.ruleType.RULE) {
