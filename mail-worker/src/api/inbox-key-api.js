@@ -31,3 +31,28 @@ app.get('/inboxKey/latest', async (c) => {
 	const list = await inboxKeyService.latest(c, c.req.query());
 	return c.json(result.ok(list));
 });
+
+app.get('/public/inboxKey/info', async (c) => {
+	const data = await inboxKeyService.publicInfo(c, c.req.query());
+	return c.json(result.ok(data));
+});
+
+app.get('/public/inboxKey/mailList', async (c) => {
+	const data = await inboxKeyService.publicMailList(c, c.req.query());
+	return c.json(result.ok(data));
+});
+
+app.get('/public/inboxKey/mailDetail', async (c) => {
+	const data = await inboxKeyService.publicMailDetail(c, c.req.query());
+	return c.json(result.ok(data));
+});
+
+app.get('/public/inboxKey/latestCode', async (c) => {
+	const data = await inboxKeyService.latestCode(c, c.req.query());
+	return c.json(result.ok(data));
+});
+
+app.get('/public/inboxKey/latestCodeText', async (c) => {
+	const data = await inboxKeyService.latestCode(c, c.req.query());
+	return c.text(data?.verificationCode || 'WAIT_CODE');
+});
