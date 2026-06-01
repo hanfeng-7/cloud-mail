@@ -3,6 +3,7 @@ import inboxKey from '../entity/inbox-key';
 import email from '../entity/email';
 import BizError from '../error/biz-error';
 import { formatDetailDate, toUtc } from '../utils/date-uitil';
+import emailUtils from '../utils/email-utils';
 import { and, asc, count, desc, eq, gt, lt, ne, sql } from 'drizzle-orm';
 import { emailConst, isDel } from '../const/entity-const';
 
@@ -193,16 +194,42 @@ const inboxKeyService = {
 
 		return {
 			mailbox: row.email,
-			list,
+			list: list.map(item => this.toPublicEmail(item)),
 			total: totalRow.total,
 			latestEmail: latestEmail || { emailId: 0, toEmail: row.email }
 		};
 	},
 
+	async publicInfo(c, params) {
+		const row = await this.selectByAccessKeyForView(c, params.key);
+		return {
+			email: row.email,
+			status: row.status,
+			receiveExpireTime: row.receiveExpireTime,
+			deleteTime: row.deleteTime,
+			createTime: row.createTime
+		};
+	},
+
+	async publicMailDetail(c, params) {
+		const row = await this.selectByAccessKeyForView(c, params.key);
+		const id = Number(params.id);
+		if (!id) {
+			throw new BizError('Missing mail id', 403);
+		}
+
+		const mail = await this.selectPublicEmailById(c, row.email, id);
+		if (!mail) {
+			throw new BizError('Mail not found', 404);
+		}
+
+		return this.toPublicEmail(mail);
+	},
+
 	async latest(c, params) {
 		const { key, emailId } = params;
 		const row = await this.selectByAccessKeyForView(c, key);
-		return orm(c).select({
+		const list = await orm(c).select({
 			emailId: email.emailId,
 			sendEmail: email.sendEmail,
 			name: email.name,
@@ -222,19 +249,88 @@ const inboxKeyService = {
 			eq(email.isDel, isDel.NORMAL),
 			ne(email.status, emailConst.status.SAVING)
 		)).orderBy(desc(email.emailId)).limit(20).all();
+
+		return list.map(item => this.toPublicEmail(item));
+	},
+
+	async latestCode(c, params) {
+		const row = await this.selectByAccessKeyForView(c, params.key);
+		const list = await orm(c).select({
+			emailId: email.emailId,
+			sendEmail: email.sendEmail,
+			name: email.name,
+			subject: email.subject,
+			text: email.text,
+			content: email.content,
+			toEmail: email.toEmail,
+			createTime: email.createTime
+		}).from(email).where(and(
+			sql`${email.toEmail} COLLATE NOCASE = ${row.email}`,
+			eq(email.type, emailConst.type.RECEIVE),
+			eq(email.isDel, isDel.NORMAL),
+			ne(email.status, emailConst.status.SAVING)
+		)).orderBy(desc(email.emailId)).limit(20).all();
+
+		for (const item of list) {
+			const verificationCode = this.extractCode(item);
+			if (verificationCode) {
+				return {
+					email: row.email,
+					verificationCode,
+					subject: item.subject || '',
+					from: item.sendEmail || '',
+					receivedAt: item.createTime
+				};
+			}
+		}
+
+		return {
+			email: row.email,
+			verificationCode: null,
+			subject: '',
+			from: '',
+			receivedAt: null
+		};
 	},
 
 	async selectByAccessKeyForView(c, accessKey) {
 		if (!accessKey) {
-			throw new BizError('Missing inbox key', 401);
+			throw new BizError('Missing inbox key', 403);
 		}
 
 		const row = await orm(c).select().from(inboxKey).where(eq(inboxKey.accessKey, accessKey)).get();
-		if (!row || row.status === inboxKeyConst.status.CLOSE || this.isDeleteExpired(row)) {
+		if (!row) {
+			throw new BizError('Inbox key mailbox not found', 404);
+		}
+
+		if (row.status === inboxKeyConst.status.CLOSE || this.isReceiveExpired(row) || this.isDeleteExpired(row)) {
 			throw new BizError('Inbox key mailbox is disabled or expired', 403);
 		}
 
 		return row;
+	},
+
+	selectPublicEmailById(c, mail, emailId) {
+		return orm(c).select({
+			emailId: email.emailId,
+			sendEmail: email.sendEmail,
+			name: email.name,
+			subject: email.subject,
+			code: email.code,
+			text: email.text,
+			content: email.content,
+			recipient: email.recipient,
+			toEmail: email.toEmail,
+			toName: email.toName,
+			createTime: email.createTime,
+			status: email.status
+		}).from(email).where(and(
+			eq(email.emailId, emailId),
+			sql`${email.toEmail} COLLATE NOCASE = ${mail}`,
+			eq(email.type, emailConst.type.RECEIVE),
+			eq(email.isDel, isDel.NORMAL),
+			ne(email.status, emailConst.status.SAVING)
+		)).get();
 	},
 
 	resolveDomain(c, domain) {
@@ -295,6 +391,33 @@ const inboxKeyService = {
 			value += chars[bytes[i] % chars.length];
 		}
 		return value;
+	},
+
+	toPublicEmail(mail) {
+		return {
+			emailId: mail.emailId,
+			sendEmail: mail.sendEmail,
+			name: mail.name,
+			subject: mail.subject,
+			code: mail.code,
+			text: mail.text,
+			content: mail.content,
+			recipient: mail.recipient,
+			toEmail: mail.toEmail,
+			toName: mail.toName,
+			createTime: mail.createTime,
+			status: mail.status
+		};
+	},
+
+	extractCode(mail) {
+		const text = [
+			mail.subject || '',
+			mail.text || '',
+			emailUtils.htmlToText(mail.content || '')
+		].join('\n');
+		const match = text.match(/(?:^|\D)(\d{4,8})(?!\d)/);
+		return match ? match[1] : null;
 	}
 };
 

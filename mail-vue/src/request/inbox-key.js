@@ -17,9 +17,10 @@ export function inboxKeyDelete(inboxKeyIds) {
 }
 
 export function inboxKeyMailList(params) {
-    return http.get('/inboxKey/mailList', {params})
+    return http.get('/public/inboxKey/mailList', {params})
 }
 
 export function inboxKeyLatest(key, emailId) {
-    return http.get('/inboxKey/latest', {params: {key, emailId}, noMsg: true, timeout: 35 * 1000})
+    return http.get('/public/inboxKey/mailList', {params: {key, emailId, timeSort: 1}, noMsg: true, timeout: 35 * 1000})
+        .then(data => data.list)
 }
