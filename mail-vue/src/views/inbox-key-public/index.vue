@@ -41,6 +41,10 @@
             <div>To: {{ current.toEmail }}</div>
             <div>{{ detailTime(current.createTime) }}</div>
           </div>
+          <div v-if="current.code" class="verify-code">
+            <span>Verification code</span>
+            <strong>{{ current.code }}</strong>
+          </div>
           <ShadowHtml v-if="current.content" class="body-html" :html="current.content"/>
           <pre v-else class="body-text">{{ current.text }}</pre>
         </article>
@@ -225,6 +229,27 @@ function detailTime(time) {
 
 .code {
   color: var(--el-color-primary);
+}
+
+.verify-code {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--el-color-primary-light-5);
+  border-radius: 8px;
+  background: var(--el-color-primary-light-9);
+
+  span {
+    color: var(--regular-text-color);
+    font-size: 13px;
+  }
+
+  strong {
+    color: var(--el-color-primary);
+    font-size: 22px;
+  }
 }
 
 .detail {

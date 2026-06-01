@@ -1,7 +1,5 @@
 <template>
-  <publicKeyInbox v-if="isPublicInbox"/>
   <emailScroll ref="scroll"
-               v-else
                :cancel-success="cancelStar"
                :star-success="addStar"
                :getEmailList="getEmailList"
@@ -32,19 +30,16 @@ import emailScroll from "@/components/email-scroll/index.vue"
 import {emailList, emailDelete, emailLatest, emailRead} from "@/request/email.js";
 import {starAdd, starCancel} from "@/request/star.js";
 import {defineOptions, h, onMounted, reactive, ref, watch} from "vue";
-import {computed} from "vue";
 import {sleep} from "@/utils/time-utils.js";
 import router from "@/router/index.js";
 import {Icon} from "@iconify/vue";
 import { useRoute } from 'vue-router'
-import publicKeyInbox from "@/views/inbox-key-public/index.vue";
 
 defineOptions({
   name: 'email'
 })
 
 const route = useRoute();
-const isPublicInbox = computed(() => !!route.query.key);
 const emailStore = useEmailStore();
 const accountStore = useAccountStore();
 const settingStore = useSettingStore();
@@ -54,18 +49,12 @@ const params = reactive({
 })
 
 onMounted(() => {
-  if (isPublicInbox.value) {
-    return
-  }
   emailStore.emailScroll = scroll;
   latest()
 })
 
 
 watch(() => accountStore.currentAccountId, () => {
-  if (isPublicInbox.value) {
-    return
-  }
   scroll.value.refreshList();
 })
 
@@ -92,10 +81,6 @@ async function latest() {
     await sleep(autoRefresh > 1 ? autoRefresh * 1000 : 3000);
 
     if (route.name !== 'email') {
-      continue;
-    }
-
-    if (isPublicInbox.value) {
       continue;
     }
 
