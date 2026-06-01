@@ -33,13 +33,13 @@
         </el-table-column>
         <el-table-column label="访问链接" min-width="280" show-overflow-tooltip>
           <template #default="{ row }">
-            <span class="link" @click="copy(row.accessLink)">{{ row.accessLink }}</span>
+            <span class="link" @click="openCopy(row)">{{ row.accessLink }}</span>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="170" fixed="right">
           <template #default="{ row }">
             <div class="actions">
-              <Icon class="icon" icon="fluent:copy-20-regular" width="20" height="20" @click="copy(row.accessLink)"/>
+              <Icon class="icon" icon="fluent:copy-20-regular" width="20" height="20" @click="openCopy(row)"/>
               <Icon v-perm="'inbox-key:set'" class="icon" icon="fluent:settings-20-regular" width="20" height="20" @click="openEdit(row)"/>
               <Icon
                   v-perm="'inbox-key:set'"
@@ -87,6 +87,27 @@
         <el-button type="primary" :loading="submitLoading" @click="submitEdit">保存</el-button>
       </div>
     </el-dialog>
+
+    <el-dialog v-model="showCopy" title="Copy inbox link" width="460">
+      <div class="copy-box">
+        <el-radio-group v-model="copyType">
+          <el-radio-button
+              v-for="option in copyOptions"
+              :key="option.value"
+              :label="option.value"
+          >
+            {{ option.label }}
+          </el-radio-button>
+        </el-radio-group>
+        <el-input
+            :model-value="copyPreview"
+            type="textarea"
+            :autosize="{ minRows: 2, maxRows: 4 }"
+            readonly
+        />
+        <el-button type="primary" @click="confirmCopy">Copy</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -107,6 +128,15 @@ const loading = ref(false)
 const submitLoading = ref(false)
 const showAdd = ref(false)
 const showEdit = ref(false)
+const showCopy = ref(false)
+const copyType = ref('ui')
+const copyRow = ref(null)
+
+const copyOptions = [
+  { value: 'ui', label: 'UI page' },
+  { value: 'json', label: 'JSON API' },
+  { value: 'text', label: 'Plain text API' }
+]
 
 const domainList = computed(() => {
   const domains = settingStore.domainList || settingStore.settings.domainList || []
@@ -128,6 +158,13 @@ const editForm = reactive({
   receiveDays: 7,
   deletePermanent: true,
   deleteDays: 30
+})
+
+const copyPreview = computed(() => {
+  if (!copyRow.value) {
+    return ''
+  }
+  return buildCopyLink(copyRow.value, copyType.value)
 })
 
 getList()
@@ -219,6 +256,52 @@ function formatTime(time) {
   return tzDayjs(time).format('YYYY-MM-DD HH:mm')
 }
 
+function openCopy(row) {
+  copyRow.value = row
+  copyType.value = 'ui'
+  showCopy.value = true
+}
+
+async function confirmCopy() {
+  await copy(copyPreview.value)
+  showCopy.value = false
+}
+
+function buildCopyLink(row, type) {
+  const origin = getAccessOrigin(row.accessLink)
+  const key = encodeURIComponent(getAccessKey(row))
+
+  if (type === 'json') {
+    return `${origin}/api/public/inboxKey/latestCode?key=${key}`
+  }
+
+  if (type === 'text') {
+    return `${origin}/api/public/inboxKey/latestCodeText?key=${key}`
+  }
+
+  return `${origin}/inbox?key=${key}`
+}
+
+function getAccessOrigin(link) {
+  try {
+    return new URL(link).origin
+  } catch (e) {
+    return window.location.origin
+  }
+}
+
+function getAccessKey(row) {
+  if (row.accessKey) {
+    return row.accessKey
+  }
+
+  try {
+    return new URL(row.accessLink).searchParams.get('key') || ''
+  } catch (e) {
+    return ''
+  }
+}
+
 async function copy(text) {
   await navigator.clipboard.writeText(text)
   ElMessage({ message: '已复制', type: 'success', plain: true })
@@ -283,6 +366,11 @@ async function copy(text) {
     justify-content: space-between;
     gap: 12px;
   }
+}
+
+.copy-box {
+  display: grid;
+  gap: 14px;
 }
 
 .loading {
