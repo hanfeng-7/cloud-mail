@@ -30,8 +30,50 @@ const dbInit = {
 		await this.v2_9DB(c);
 		await this.v3_0DB(c);
 		await this.v3_1DB(c);
+		await this.v3_2DB(c);
 		await settingService.refresh(c);
 		return c.text('success');
+	},
+
+	async v3_2DB(c) {
+		try {
+			await c.env.db.prepare(`
+				CREATE TABLE IF NOT EXISTS inbox_key (
+					inbox_key_id INTEGER PRIMARY KEY AUTOINCREMENT,
+					email TEXT NOT NULL,
+					access_key TEXT NOT NULL,
+					status INTEGER NOT NULL DEFAULT 0,
+					receive_expire_time DATETIME,
+					delete_time DATETIME,
+					create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+					update_time DATETIME DEFAULT CURRENT_TIMESTAMP
+				)
+			`).run();
+		} catch (e) {
+			console.warn(`skip inbox_key table: ${e.message}`);
+		}
+
+		try {
+			await c.env.db.batch([
+				c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_inbox_key_email_nocase ON inbox_key(email COLLATE NOCASE)`),
+				c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_inbox_key_access_key ON inbox_key(access_key)`),
+				c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_email_to_email ON email(to_email)`)
+			]);
+		} catch (e) {
+			console.warn(`skip inbox_key indexes: ${e.message}`);
+		}
+
+		try {
+			await c.env.db.prepare(`
+        INSERT INTO perm (perm_id, name, perm_key, pid, type, sort) VALUES
+        (37,'Key Inbox', NULL, 0, 1, 5.2),
+        (38,'Key Inbox View', 'inbox-key:query', 37, 2, 0),
+        (39,'Key Inbox Add', 'inbox-key:add', 37, 2, 1),
+        (40,'Key Inbox Set', 'inbox-key:set', 37, 2, 2),
+        (41,'Key Inbox Delete', 'inbox-key:delete', 37, 2, 3)`).run();
+		} catch (e) {
+			console.warn(`skip inbox_key perms: ${e.message}`);
+		}
 	},
 
 	async v3_1DB(c) {
