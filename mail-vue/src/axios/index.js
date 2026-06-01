@@ -20,6 +20,7 @@ http.interceptors.response.use((res) => {
 
             const noMsg = res.config.noMsg;
             const data = res.data
+            const publicInbox = isPublicInboxPage()
 
             if (noMsg) {
 
@@ -34,7 +35,9 @@ http.interceptors.response.use((res) => {
                     repeatNum: -4,
                 })
                 localStorage.removeItem('token')
-                router.replace('/login')
+                if (!publicInbox) {
+                    router.replace('/login')
+                }
                 reject(data)
             } else if (data.code === 403) {
                 ElMessage({
@@ -118,4 +121,8 @@ http.interceptors.response.use((res) => {
 
 export default http
 
+function isPublicInboxPage() {
+    const route = router.currentRoute.value
+    return ['/inbox', '/public-inbox'].includes(route.path) && !!route.query.key
+}
 

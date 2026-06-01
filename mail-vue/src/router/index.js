@@ -6,6 +6,34 @@ import {cvtR2Url} from "@/utils/convert.js";
 
 const routes = [
     {
+        path: '/inbox',
+        name: 'public-inbox',
+        component: () => import('@/views/inbox-key-public/index.vue'),
+        beforeEnter: (to) => {
+            return hasPublicInboxKey(to) ? true : {name: 'email'}
+        },
+        meta: {
+            title: 'Key Inbox',
+            name: 'public-inbox',
+            menu: false,
+            public: true
+        }
+    },
+    {
+        path: '/public-inbox',
+        name: 'public-inbox-alias',
+        component: () => import('@/views/inbox-key-public/index.vue'),
+        beforeEnter: (to) => {
+            return hasPublicInboxKey(to) ? true : {name: 'email'}
+        },
+        meta: {
+            title: 'Key Inbox',
+            name: 'public-inbox',
+            menu: false,
+            public: true
+        }
+    },
+    {
         path: '/',
         name: 'layout',
         redirect: '/inbox',
@@ -15,6 +43,9 @@ const routes = [
                 path: '/inbox',
                 name: 'email',
                 component: () => import('@/views/email/index.vue'),
+                beforeEnter: (to) => {
+                    return hasPublicInboxKey(to) ? {name: 'public-inbox', query: to.query} : true
+                },
                 meta: {
                     title: 'inbox',
                     name: 'email',
@@ -86,6 +117,10 @@ NProgress.configure({
 let timer
 let first = true
 
+function hasPublicInboxKey(to) {
+    return ['/inbox', '/public-inbox'].includes(to.path) && !!to.query.key
+}
+
 router.beforeEach((to, from, next) => {
 
     if (timer) {
@@ -100,7 +135,7 @@ router.beforeEach((to, from, next) => {
 
     const token = localStorage.getItem('token')
 
-    if (!token && to.name === 'email' && to.query.key) {
+    if (hasPublicInboxKey(to)) {
         return next()
     }
 
@@ -162,6 +197,13 @@ router.afterEach((to) => {
     }
 
     const uiStore = useUiStore()
+    if (to.meta.public) {
+        uiStore.accountShow = false
+        uiStore.asideShow = false
+        first = false
+        return
+    }
+
     if (to.meta.menu) {
         if (['content', 'email', 'send'].includes(to.meta.name)) {
             uiStore.accountShow = window.innerWidth > 767;
